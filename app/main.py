@@ -1,6 +1,8 @@
 """FastAPI 入口：旅行规划助手 REST 接口"""
+import time
 import uuid
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from langgraph.types import Command
 
 from app.models.schemas import PlanRequest, PlanStatus, SessionInfo, ResumeRequest
@@ -21,6 +23,57 @@ api = FastAPI(
 
 # 启动时建表
 init_db()
+
+# 运行指标（进程内统计，重启归零）
+METRICS = {
+    "total_requests": 0,
+    "total_errors": 0,
+    "total_latency_ms": 0.0,
+    "start_time": time.time(),
+}
+
+
+# ================================================================
+# 中间件：请求追踪 + 耗时统计
+# ================================================================
+@api.middleware("http")
+async def trace_middleware(request: Request, call_next):
+    """给每个请求分配唯一 trace_id，统计耗时，注入响应头"""
+    trace_id = str(uuid.uuid4())[:8]
+    request.state.trace_id = trace_id
+
+    METRICS["total_requests"] += 1
+    start = time.time()
+
+    logger.info(f"→ {request.method} {request.url.path} | trace_id={trace_id}")
+
+    response = await call_next(request)
+
+    latency_ms = (time.time() - start) * 1000
+    METRICS["total_latency_ms"] += latency_ms
+
+    response.headers["X-Trace-ID"] = trace_id
+    if response.status_code >= 400:
+        METRICS["total_errors"] += 1
+
+    logger.info(
+        f"← {request.method} {request.url.path} | status={response.status_code} "
+        f"| 耗时={latency_ms:.0f}ms | trace_id={trace_id}"
+    )
+    return response
+
+
+# ================================================================
+# 全局异常处理器：报错也带 trace_id
+# ================================================================
+@api.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    trace_id = getattr(request.state, "trace_id", "unknown")
+    logger.exception(f"✘ 未捕获异常 | path={request.url.path} | trace_id={trace_id}")
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error": "服务器内部错误", "trace_id": trace_id},
+    )
 
 
 # ================================================================
@@ -64,23 +117,35 @@ async def health():
     return {"status": "healthy"}
 
 
+@api.get("/metrics")
+async def metrics():
+    """运行指标：请求数、错误数、平均耗时、运行时长"""
+    total = METRICS["total_requests"]
+    avg_ms = METRICS["total_latency_ms"] / total if total else 0
+    uptime = time.time() - METRICS["start_time"]
+    return {
+        "total_requests": total,
+        "total_errors": METRICS["total_errors"],
+        "avg_latency_ms": round(avg_ms, 1),
+        "uptime_seconds": round(uptime, 1),
+    }
+
+
 @api.post("/plan", response_model=PlanStatus, dependencies=[Depends(verify_api_key)])
-async def plan(request: PlanRequest):
+async def plan(request: PlanRequest, req: Request):
     """发起规划：跑到 human_review 前暂停，返回草稿方案。"""
+    trace_id = getattr(req.state, "trace_id", "unknown")
     thread_id = request.thread_id or str(uuid.uuid4())[:8]
-    logger.info(f"▶ /plan | thread_id={thread_id}")
+    logger.info(f"▶ /plan | thread_id={thread_id} | trace_id={trace_id}")
 
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 20}
 
-    # 清空旧会话状态（防止复用同一 thread_id 时残留上次数据）
     try:
         checkpointer.delete_thread(thread_id)
     except Exception:
         pass
 
-    # 记录会话
     repo.create_session(thread_id, request.user_query)
-
     initial_state = build_initial_state(request.user_query)
 
     try:
@@ -88,17 +153,16 @@ async def plan(request: PlanRequest):
             if "__interrupt__" in event:
                 break
     except Exception as e:
-        logger.exception(f"✘ /plan 失败 | thread_id={thread_id}")
+        logger.exception(f"✘ /plan 失败 | thread_id={thread_id} | trace_id={trace_id}")
         repo.update_session_status(thread_id, "failed")
         return PlanStatus(success=False, thread_id=thread_id, status="error", error=str(e))
 
     snapshot = workflow_app.get_state(config)
 
-    # 停在 human_review：返回草稿方案，等待人工审核
     if snapshot.next and "human_review" in snapshot.next:
         current_plan = snapshot.values.get("current_plan", [])
         repo.update_session_status(thread_id, "waiting_for_review")
-        logger.info(f"✔ /plan 等待人工审核 | thread_id={thread_id}")
+        logger.info(f"✔ /plan 等待人工审核 | thread_id={thread_id} | trace_id={trace_id}")
         return PlanStatus(
             success=True,
             thread_id=thread_id,
@@ -106,8 +170,7 @@ async def plan(request: PlanRequest):
             plan=str(current_plan),
         )
 
-    # 理论上不会走到这里（interrupt_before 一定会在 human_review 前停）
-    logger.info(f"✔ /plan 完成 | thread_id={thread_id}")
+    logger.info(f"✔ /plan 完成 | thread_id={thread_id} | trace_id={trace_id}")
     return PlanStatus(
         success=True,
         thread_id=thread_id,
@@ -117,11 +180,12 @@ async def plan(request: PlanRequest):
 
 
 @api.post("/resume", response_model=PlanStatus, dependencies=[Depends(verify_api_key)])
-async def resume(request: ResumeRequest):
-    """人工审核后恢复流程。user_feedback='通过' 则输出最终方案，否则打回重规划。"""
+async def resume(request: ResumeRequest, req: Request):
+    """人工审核后恢复流程。"""
+    trace_id = getattr(req.state, "trace_id", "unknown")
     thread_id = request.thread_id
     user_feedback = request.user_feedback
-    logger.info(f"▶ /resume | thread_id={thread_id} | feedback={user_feedback}")
+    logger.info(f"▶ /resume | thread_id={thread_id} | feedback={user_feedback} | trace_id={trace_id}")
 
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 20}
 
@@ -130,23 +194,21 @@ async def resume(request: ResumeRequest):
             if "__interrupt__" in event:
                 break
     except Exception as e:
-        logger.exception(f"✘ /resume 失败 | thread_id={thread_id}")
+        logger.exception(f"✘ /resume 失败 | thread_id={thread_id} | trace_id={trace_id}")
         repo.update_session_status(thread_id, "failed")
         return PlanStatus(success=False, thread_id=thread_id, status="error", error=str(e))
 
     snapshot = workflow_app.get_state(config)
 
-    # 用户驳回后又回到 human_review
     if snapshot.next and "human_review" in snapshot.next:
         current_plan = snapshot.values.get("current_plan", [])
-        logger.info(f"✔ /resume 再次等待审核 | thread_id={thread_id}")
+        logger.info(f"✔ /resume 再次等待审核 | thread_id={thread_id} | trace_id={trace_id}")
         return PlanStatus(
             success=True, thread_id=thread_id,
             status="waiting_for_review",
             plan=str(current_plan),
         )
 
-    # 通过：落库
     final_state = snapshot.values
     final_plan = str(final_state.get("final_plan", ""))
 
@@ -159,7 +221,7 @@ async def resume(request: ResumeRequest):
         final_plan=final_plan,
     )
 
-    logger.info(f"✔ /resume 完成 | thread_id={thread_id}")
+    logger.info(f"✔ /resume 完成 | thread_id={thread_id} | trace_id={trace_id}")
     return PlanStatus(
         success=True, thread_id=thread_id, status="completed",
         final_plan=final_plan,
