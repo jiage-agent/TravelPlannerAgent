@@ -39,7 +39,7 @@ def build_base_state(query: str) -> dict:
 
 
 def evaluate():
-    with open("tests/evaluation/info_collection/40 eval_cases.json", "r", encoding="utf-8") as f:
+    with open("tests/evaluation/requirement_collection/requirement_cases_50.json", "r", encoding="utf-8") as f:
         cases = json.load(f)
 
     total = len(cases)

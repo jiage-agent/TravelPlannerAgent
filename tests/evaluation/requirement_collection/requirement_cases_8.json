@@ -1,0 +1,10 @@
+[
+  {"id": 1, "query": "我想10月1号去杭州玩3天，预算4000块，喜欢美食和自然风光", "expected": {"destination": "杭州", "days": 3, "budget": 4000, "preferences": ["美食", "自然风光"]}},
+  {"id": 2, "query": "国庆去重庆玩5天，预算8000，喜欢火锅和夜景", "expected": {"destination": "重庆", "days": 5, "budget": 8000, "preferences": ["火锅", "夜景"]}},
+  {"id": 3, "query": "去北京旅游，3天，喜欢历史", "expected": {"destination": "北京", "days": 3, "budget": 0, "preferences": ["历史"]}},
+  {"id": 4, "query": "去西安玩，4天，预算5000，想看兵马俑", "expected": {"destination": "西安", "days": 4, "budget": 5000, "preferences": ["兵马俑"]}},
+  {"id": 5, "query": "去青岛，3天，预算2500", "expected": {"destination": "青岛", "days": 3, "budget": 2500, "preferences": []}},
+  {"id": 6, "query": "去厦门玩5天", "expected": {"destination": "厦门", "days": 5, "budget": 0, "preferences": []}},
+  {"id": 7, "query": "10月中旬去南京玩2天，喜欢人文古迹", "expected": {"destination": "南京", "days": 2, "budget": 0, "preferences": ["人文古迹"]}},
+  {"id": 8, "query": "五一去长沙玩4天，预算3500，主要是美食游", "expected": {"destination": "长沙", "days": 4, "budget": 3500, "preferences": ["美食"]}}
+]
