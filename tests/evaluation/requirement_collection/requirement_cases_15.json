@@ -1,0 +1,17 @@
+[
+  {"id": 1, "query": "我想10月1号去杭州玩3天，预算4000块，喜欢美食和自然风光", "expected": {"destination": "杭州", "days": 3, "budget": 4000}},
+  {"id": 2, "query": "国庆去重庆玩5天，预算8000，喜欢火锅和夜景", "expected": {"destination": "重庆", "days": 5, "budget": 8000}},
+  {"id": 3, "query": "去北京旅游，3天，喜欢历史", "expected": {"destination": "北京", "days": 3, "budget": 0}},
+  {"id": 4, "query": "帮我规划一下三亚的行程", "expected": {"destination": "三亚", "days": 0, "budget": 0}},
+  {"id": 5, "query": "下周想去成都，预算3000", "expected": {"destination": "成都", "days": 0, "budget": 3000}},
+  {"id": 6, "query": "去西安玩，4天，预算5000，想看兵马俑", "expected": {"destination": "西安", "days": 4, "budget": 5000}},
+  {"id": 7, "query": "明天去上海，2天", "expected": {"destination": "上海", "days": 2, "budget": 0}},
+  {"id": 8, "query": "预算1万，去新疆玩一周，喜欢自然风光", "expected": {"destination": "新疆", "days": 7, "budget": 10000}},
+  {"id": 9, "query": "我想去杭州玩3天，预算4000，喜欢美食和自然风光", "expected": {"destination": "杭州", "days": 3, "budget": 4000}},
+  {"id": 10, "query": "去青岛，3天，预算2500", "expected": {"destination": "青岛", "days": 3, "budget": 2500}},
+  {"id": 11, "query": "去厦门玩5天", "expected": {"destination": "厦门", "days": 5, "budget": 0}},
+  {"id": 12, "query": "预算6000，想去云南玩", "expected": {"destination": "云南", "days": 0, "budget": 6000}},
+  {"id": 13, "query": "我要去火星旅游", "expected": {"destination": "火星", "days": 0, "budget": 0}},
+  {"id": 14, "query": "随便去哪都行", "expected": {"destination": "", "days": 0, "budget": 0}},
+  {"id": 15, "query": "帮我订一张去广州的机票", "expected": {"destination": "广州", "days": 0, "budget": 0}}
+]

@@ -1,0 +1,47 @@
+[
+  {"id": 1, "query": "我想10月1号去杭州玩3天，预算4000块，喜欢美食和自然风光", "expected": {"destination": "杭州", "days": 3, "budget": 4000}},
+  {"id": 2, "query": "国庆去重庆玩5天，预算8000，喜欢火锅和夜景", "expected": {"destination": "重庆", "days": 5, "budget": 8000}},
+  {"id": 3, "query": "去北京旅游，3天，喜欢历史", "expected": {"destination": "北京", "days": 3, "budget": 0}},
+  {"id": 4, "query": "去西安玩，4天，预算5000，想看兵马俑", "expected": {"destination": "西安", "days": 4, "budget": 5000}},
+  {"id": 5, "query": "去青岛，3天，预算2500", "expected": {"destination": "青岛", "days": 3, "budget": 2500}},
+  {"id": 6, "query": "去厦门玩5天", "expected": {"destination": "厦门", "days": 5, "budget": 0}},
+  {"id": 7, "query": "10月中旬去南京玩2天，喜欢人文古迹", "expected": {"destination": "南京", "days": 2, "budget": 0}},
+  {"id": 8, "query": "五一去长沙玩4天，预算3500，主要是美食游", "expected": {"destination": "长沙", "days": 4, "budget": 3500}},
+
+  {"id": 9, "query": "帮我规划一下三亚的行程", "expected": {"destination": "三亚", "days": 0, "budget": 0}},
+  {"id": 10, "query": "下周想去成都，预算3000", "expected": {"destination": "成都", "days": 0, "budget": 3000}},
+  {"id": 11, "query": "预算6000，想去云南玩", "expected": {"destination": "云南", "days": 0, "budget": 6000}},
+  {"id": 12, "query": "去广州", "expected": {"destination": "广州", "days": 0, "budget": 0}},
+  {"id": 13, "query": "玩5天", "expected": {"destination": "", "days": 5, "budget": 0}},
+  {"id": 14, "query": "预算5000", "expected": {"destination": "", "days": 0, "budget": 5000}},
+  {"id": 15, "query": "想去旅游", "expected": {"destination": "", "days": 0, "budget": 0}},
+  {"id": 16, "query": "帮我安排一下行程", "expected": {"destination": "", "days": 0, "budget": 0}},
+
+  {"id": 17, "query": "明天去上海，2天", "expected": {"destination": "上海", "days": 2, "budget": 0}},
+  {"id": 18, "query": "下周五去成都，玩3天", "expected": {"destination": "成都", "days": 3, "budget": 0}},
+  {"id": 19, "query": "下个月1号去西安玩5天", "expected": {"destination": "西安", "days": 5, "budget": 0}},
+  {"id": 20, "query": "这周末去苏州玩2天", "expected": {"destination": "苏州", "days": 2, "budget": 0}},
+  {"id": 21, "query": "元旦去哈尔滨看冰雕", "expected": {"destination": "哈尔滨", "days": 0, "budget": 0}},
+  {"id": 22, "query": "春节去三亚，7天，预算15000", "expected": {"destination": "三亚", "days": 7, "budget": 15000}},
+
+  {"id": 23, "query": "预算1万，去新疆玩一周，喜欢自然风光", "expected": {"destination": "新疆", "days": 7, "budget": 10000}},
+  {"id": 24, "query": "想去江浙沪玩5天", "expected": {"destination": "江浙沪", "days": 5, "budget": 0}},
+  {"id": 25, "query": "去东北看雪，4天", "expected": {"destination": "东北", "days": 4, "budget": 0}},
+  {"id": 26, "query": "去川西自驾，7天", "expected": {"destination": "川西", "days": 7, "budget": 0}},
+  {"id": 27, "query": "想去海南玩", "expected": {"destination": "海南", "days": 0, "budget": 0}},
+  {"id": 28, "query": "去西北大环线，10天", "expected": {"destination": "西北", "days": 10, "budget": 0}},
+
+  {"id": 29, "query": "我要去火星旅游", "expected": {"destination": "火星", "days": 0, "budget": 0}},
+  {"id": 30, "query": "随便去哪都行", "expected": {"destination": "", "days": 0, "budget": 0}},
+  {"id": 31, "query": "帮我订一张去广州的机票", "expected": {"destination": "广州", "days": 0, "budget": 0}},
+  {"id": 32, "query": "我想看股票行情", "expected": {"destination": "", "days": 0, "budget": 0}},
+  {"id": 33, "query": "123456", "expected": {"destination": "", "days": 0, "budget": 0}},
+  {"id": 34, "query": "asdfghjkl", "expected": {"destination": "", "days": 0, "budget": 0}},
+
+  {"id": 35, "query": "预算100块去三亚玩7天", "expected": {"destination": "三亚", "days": 7, "budget": 100}},
+  {"id": 36, "query": "去三亚但讨厌海边", "expected": {"destination": "三亚", "days": 0, "budget": 0}},
+  {"id": 37, "query": "0元去北京玩一个月", "expected": {"destination": "北京", "days": 30, "budget": 0}},
+  {"id": 38, "query": "去杭州玩，预算1块，喜欢五星酒店", "expected": {"destination": "杭州", "days": 0, "budget": 1}},
+  {"id": 39, "query": "去拉萨，预算100万，玩365天", "expected": {"destination": "拉萨", "days": 365, "budget": 1000000}},
+  {"id": 40, "query": "帮我去月球建酒店", "expected": {"destination": "月球", "days": 0, "budget": 0}}
+]
