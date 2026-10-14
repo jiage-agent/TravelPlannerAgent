@@ -87,6 +87,7 @@ def get_base_state(**overrides) -> AgentState:
         "max_iterations": 3,
         "turn": 1,
         "history_summary": "",
+        "previous_extraction": {},
         "final_plan": None,
         "messages": [],
         "human_approved": False,
@@ -173,7 +174,17 @@ async def test_supervisor_routes_to_info_collection():
             "end",
         ),
     ],
-    ids=lambda v: v if isinstance(v, str) else "",
+    ids=[
+        "empty-state-to-requirement",
+        "days-missing-to-requirement",
+        "info-missing-to-info-collection",
+        "no-plan-to-planner",
+        "plan-unaudited-to-budget",
+        "budget-ok-preference-unaudited-to-preference",
+        "all-ready-to-human-review",
+        "max-iterations-no-feedback-to-human-review",
+        "max-iterations-with-feedback-to-end",
+    ],
 )
 async def test_supervisor_routing_table(label, overrides, expected):
     """Supervisor 的完整优先级路由表 + 迭代上限兜底（防死循环）。"""
