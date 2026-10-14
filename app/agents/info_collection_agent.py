@@ -1,4 +1,4 @@
-"""信息收集 Agent：拉取天气（真实 API）和路线（Mock）"""
+"""info_collection Agent：拉取天气（真实 API）和路线（Mock）"""
 import httpx                                              # 同步 HTTP 客户端
 from datetime import datetime, timedelta                  # 日期计算
 from app.graph.state import AgentState                    # 全局状态

@@ -37,3 +37,5 @@ logs/
 .idea/
 .vscode/
 *.swp
+# Chainlit 自动生成的翻译文件
+.chainlit/translations/

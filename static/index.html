@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>智能旅行规划助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f7fa;
+    color: #1f2937;
+    padding: 32px 20px;
+    min-height: 100vh;
+  }
+  .container { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  input, textarea {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  input:focus, textarea:focus { border-color: #2563eb; }
+  textarea { width: 100%; resize: vertical; min-height: 60px; font-family: inherit; }
+  button {
+    padding: 10px 22px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  button.secondary { background: #10b981; }
+  button.secondary:hover { background: #059669; }
+  button.danger { background: #ef4444; }
+  .status { font-size: 14px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+  .status.info { background: #eff6ff; color: #1e40af; }
+  .status.success { background: #ecfdf5; color: #047857; }
+  .status.error { background: #fef2f2; color: #b91c1c; }
+  .plan {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .meta { font-size: 12px; color: #6b7280; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌴 智能旅行规划助手</h1>
+  <p class="subtitle">基于 LangGraph 的多 Agent 协作旅行规划系统 · Supervisor 中心化架构 · Human-in-the-loop</p>
+
+  <div id="status" class="status info">准备就绪</div>
+
+  <div class="card">
+    <div class="row">
+      <input id="apiKey" placeholder="API Key（默认 test）" value="travel-planner-secret-2026" />
+      <input id="threadId" placeholder="会话ID（可选）" value="demo-001" />
+    </div>
+    <textarea id="userQuery" placeholder="请输入旅行需求，例如：我想10月1号去杭州玩3天，预算4000块，喜欢美食和自然风光">我想10月1号去杭州玩3天，预算4000块，喜欢美食和自然风光</textarea>
+    <div class="row" style="margin-top: 12px;">
+      <button id="btnPlan">发起规划</button>
+      <button id="btnResume" class="secondary">人工审核通过</button>
+      <button id="btnResumeReject" class="danger">人工驳回</button>
+      <button id="btnQuery" style="background:#6366f1;">查询会话</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size: 16px; margin-bottom: 12px;">📋 规划结果</h3>
+    <div id="planOutput" class="plan">暂无结果</div>
+    <p class="meta" id="meta"></p>
+  </div>
+</div>
+
+<script>
+const API_BASE = "http://127.0.0.1:8000";
+const $ = id => document.getElementById(id);
+
+function setStatus(text, type = "info") {
+  const el = $("status");
+  el.textContent = text;
+  el.className = `status ${type}`;
+}
+
+function showPlan(text, meta = "") {
+  $("planOutput").textContent = text || "（空）";
+  $("meta").textContent = meta;
+}
+
+async function callAPI(path, method, body = null, params = null) {
+  let url = API_BASE + path;
+  if (params) {
+    const qs = new URLSearchParams(params).toString();
+    url += "?" + qs;
+  }
+  const headers = {
+    "Content-Type": "application/json",
+    "X-API-Key": $("apiKey").value.trim(),
+  };
+  const options = { method, headers };
+  if (body) options.body = JSON.stringify(body);
+
+  const res = await fetch(url, options);
+  const traceId = res.headers.get("X-Trace-ID") || "-";
+  const data = await res.json();
+  return { status: res.status, data, traceId };
+}
+
+// 1. 发起规划
+$("btnPlan").onclick = async () => {
+  const threadId = $("threadId").value.trim() || "demo-" + Date.now();
+  $("threadId").value = threadId;
+  setStatus("⏳ 正在规划中，请稍等...（LLM 多节点调用约 20~40 秒）");
+  $("btnPlan").disabled = true;
+  try {
+    const { data, traceId } = await callAPI("/plan", "POST", {
+      user_query: $("userQuery").value.trim(),
+      thread_id: threadId,
+    });
+    if (data.status === "waiting_for_review") {
+      setStatus("✅ 规划完成，等待人工审核", "success");
+      showPlan(data.plan, `trace_id: ${traceId} | 状态: waiting_for_review`);
+    } else if (data.status === "completed") {
+      setStatus("✅ 已完成", "success");
+      showPlan(data.final_plan, `trace_id: ${traceId}`);
+    } else {
+      setStatus("⚠️ 返回异常：" + (data.error || "未知错误"), "error");
+    }
+  } catch (e) {
+    setStatus("❌ 请求失败：" + e.message, "error");
+  } finally {
+    $("btnPlan").disabled = false;
+  }
+};
+
+// 2. 人工审核通过
+$("btnResume").onclick = async () => {
+  const threadId = $("threadId").value.trim();
+  if (!threadId) return setStatus("请先发起规划", "error");
+  setStatus("⏳ 正在恢复工作流...");
+  try {
+    const { data, traceId } = await callAPI("/resume", "POST", {
+      thread_id: threadId,
+      user_feedback: "通过",
+    });
+    if (data.status === "completed") {
+      setStatus("✅ 人工审核通过，最终方案已生成", "success");
+      showPlan(data.final_plan, `trace_id: ${traceId}`);
+    } else {
+      setStatus("⚠️ 状态：" + data.status, "info");
+      showPlan(data.plan);
+    }
+  } catch (e) {
+    setStatus("❌ 请求失败：" + e.message, "error");
+  }
+};
+
+// 3. 人工驳回
+$("btnResumeReject").onclick = async () => {
+  const threadId = $("threadId").value.trim();
+  if (!threadId) return setStatus("请先发起规划", "error");
+  const feedback = prompt("请输入驳回意见：", "预算太高了，请重新规划");
+  if (!feedback) return;
+  setStatus("⏳ 正在驳回并重新规划...");
+  try {
+    const { data, traceId } = await callAPI("/resume", "POST", {
+      thread_id: threadId,
+      user_feedback: feedback,
+    });
+    setStatus(`⚠️ 已驳回，当前状态：${data.status}`, "info");
+    showPlan(data.plan || data.final_plan, `trace_id: ${traceId}`);
+  } catch (e) {
+    setStatus("❌ 请求失败：" + e.message, "error");
+  }
+};
+
+// 4. 查询会话
+$("btnQuery").onclick = async () => {
+  const threadId = $("threadId").value.trim();
+  if (!threadId) return setStatus("请先发起规划", "error");
+  try {
+    const { data } = await callAPI(`/sessions/${threadId}`, "GET");
+    setStatus("📖 查询成功", "success");
+    showPlan(data.message);
+  } catch (e) {
+    setStatus("❌ 请求失败：" + e.message, "error");
+  }
+};
+</script>
+</body>
+</html>

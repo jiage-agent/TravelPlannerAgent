@@ -9,7 +9,7 @@ from app.utils.logger import setup_logger                         # 日志
 
 # 所有子 Agent 节点
 from app.agents.supervisor import supervisor_node                 # 中央调度
-from app.agents.requirement_agent import requirement_agent        # 需求提取
+from app.agents.requirement_agent import requirement_agent        # requirement_collection
 from app.agents.info_collection_agent import info_collection_agent  # 天气/路线收集
 from app.agents.planner_agent import planner_agent                # 行程规划
 from app.agents.budget_agent import budget_agent                  # 预算审核
