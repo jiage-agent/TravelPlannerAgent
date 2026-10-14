@@ -23,3 +23,31 @@ dependencies = [
     "uvicorn[standard]>=0.52.4",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+# ============================================================
+# pytest 配置
+# ------------------------------------------------------------
+# 默认只跑"零成本"用例：不调用真实 LLM、不访问外网
+# （双重保险：需要 LLM 的用例默认 skip；tests/conftest.py 里还有外网熔断器，
+#   任何漏网的 outbound 连接都会让用例失败，而不是悄悄产生 API 账单）
+#
+# 只跑默认用例：        uv run pytest -q
+# 跑需要真实 LLM 的用例：  $env:RUN_INTEGRATION_TESTS="1"; uv run pytest -q -m integration
+# ============================================================
+[tool.pytest.ini_options]
+# 所有 `async def test_*` 自动按协程执行，无需逐个加 @pytest.mark.asyncio
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# 只从 tests/ 收集用例
+testpaths = ["tests"]
+# -ra: 结尾打印 skip / xfail / error 的原因汇总
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "integration: 需要真实 LLM 或外部网络（会产生 API 费用），默认跳过；显式开启：RUN_INTEGRATION_TESTS=1 pytest -m integration",
+]
+

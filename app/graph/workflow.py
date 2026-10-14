@@ -19,7 +19,28 @@ from app.agents.human_review_agent import human_review_agent, should_continue_af
 logger = setup_logger("travel_planner.workflow")
 
 
-def build_workflow(with_checkpointer: bool = True):
+def create_connection() -> sqlite3.Connection:
+    """创建 SQLite 连接（全项目唯一一个，避免多实例写同一个库文件）。
+
+    三个 PRAGMA 都是针对真实并发问题的：
+    - journal_mode=WAL    ：读写并发，读操作不再被写操作阻塞；
+    - busy_timeout=5000   ：写锁冲突时等待 5s 再报错，而不是直接 database is locked；
+    - synchronous=NORMAL  ：WAL 下的推荐值，兼顾安全与写入性能。
+    """
+    conn = sqlite3.connect(settings.DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+
+# 全局唯一的连接与检查点保存器：v2.0 曾出现"两个 SqliteSaver 实例写同一个库文件"，
+# 高并发下会互相抢写锁，这里收敛成一个。
+_conn = create_connection()
+checkpointer = SqliteSaver(_conn)
+
+
+def build_workflow(with_checkpointer: bool = True, saver: SqliteSaver | None = None):
     """构建并编译工作流。with_checkpointer=True 时用于 FastAPI（带状态持久化）。"""
     workflow = StateGraph(AgentState)
 
@@ -69,23 +90,16 @@ def build_workflow(with_checkpointer: bool = True):
 
     # 编译
     if with_checkpointer:
-        conn = sqlite3.connect(settings.DB_PATH, check_same_thread=False)
-        checkpointer = SqliteSaver(conn)
         # interrupt_before：进入 human_review 前挂起，等待人工介入
         app = workflow.compile(
-            checkpointer=checkpointer,
-            interrupt_before=["human_review"]
+            checkpointer=saver or checkpointer,
+            interrupt_before=["human_review"],
         )
     else:
         app = workflow.compile()
 
     return app
 
-
-# ========== 实例化 ==========
-# 全局 checkpointer：供 FastAPI 的 /plan、/resume 接口共享
-conn = sqlite3.connect(settings.DB_PATH, check_same_thread=False)
-checkpointer = SqliteSaver(conn)
 
 # FastAPI 用（带持久化 + 中断恢复）
 workflow_app = build_workflow(with_checkpointer=True)

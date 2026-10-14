@@ -1,21 +1,81 @@
-import asyncio
-import sys
+"""工作流层用例
+
+本文件包含两部分，务必区分：
+
+1. `test_workflow_topology_offline()` —— pytest 用例。只校验图的拓扑接线
+   （节点是否齐全、入口、条件边去向），不连数据库、不调 LLM，默认跑。
+
+2. `run_full_workflow()` —— **手动全链路脚本，不是 pytest 用例**。
+   它会真的走完 supervisor → requirement → info_collection → planner → budget
+   → preference → human_review，其中 requirement / planner / budget / preference
+   都会调用真实 DeepSeek API，**会产生费用**。所以：
+     * 函数名没有 test_ 前缀，pytest 不会收集它；
+     * `workflow_app` 的导入放在函数内部，避免 pytest 收集本文件时就连数据库、编译图。
+
+   需要跑全链路时手动执行：
+
+       $env:PYTHONUTF8 = "1"
+       uv run python tests/test_workflow.py
+"""
 import os
+import sys
 import uuid
 
 # 把项目根目录加入 Python 搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 导入你编译好的工作流图
-from app.graph.workflow import workflow_app
+# 期望出现在图里的 7 个业务节点
+EXPECTED_NODES = {
+    "supervisor",
+    "requirement",
+    "info_collection",
+    "planner",
+    "budget",
+    "preference",
+    "human_review",
+}
 
-import os
-# # 强制注入 LangSmith 配置（防止 .env 文件未被加载）
-# os.environ["LANGCHAIN_TRACING_V2"] = "true"
-# os.environ["LANGCHAIN_PROJECT"] = "travel-planner-agent"
+
+def test_workflow_topology_offline():
+    """离线校验图接线：7 个节点齐全，入口是 supervisor，子节点一律回到 supervisor。
+
+    不需要 checkpointer（with_checkpointer=False），因此不碰 SQLite、不调 LLM。
+    """
+    from app.graph.workflow import build_workflow
+
+    app = build_workflow(with_checkpointer=False)
+    graph = app.get_graph()
+
+    # 1. 节点齐全
+    missing = EXPECTED_NODES - set(graph.nodes)
+    assert not missing, f"工作流缺少节点: {missing}"
+
+    # 2. 入口：__start__ → supervisor
+    assert any(e.source == "__start__" and e.target == "supervisor" for e in graph.edges)
+
+    # 3. Hub-and-Spoke：每个子节点执行完都回到 supervisor
+    for node in EXPECTED_NODES - {"supervisor"}:
+        if node == "human_review":
+            continue  # human_review 走条件边，单独校验
+        assert any(
+            e.source == node and e.target == "supervisor" for e in graph.edges
+        ), f"{node} 应该回到 supervisor"
+
+    # 4. supervisor 的条件路由目标必须覆盖全部 6 个节点 + 结束
+    supervisor_targets = {e.target for e in graph.edges if e.source == "supervisor" and e.conditional}
+    assert supervisor_targets == (EXPECTED_NODES - {"supervisor"}) | {"__end__"}, (
+        f"supervisor 条件路由不完整: {sorted(supervisor_targets)}"
+    )
+
+    # 5. 人工审核后的条件路由：通过→结束，驳回→回 supervisor 重规划
+    human_targets = {e.target for e in graph.edges if e.source == "human_review" and e.conditional}
+    assert human_targets == {"__end__", "supervisor"}, sorted(human_targets)
 
 
 def run_full_workflow():
+    """⚠️ 手动全链路脚本：会调用真实 LLM，产生 API 费用，pytest 不收集。"""
+    from app.graph.workflow import workflow_app  # 延迟导入：避免 pytest 收集时连库/编译图
+
     print("===== 🚀 开始测试完整的 LangGraph 工作流 =====")
 
     # 1. 构造初始状态（模拟新用户进来）
@@ -68,6 +128,7 @@ def run_full_workflow():
         print(f"\n❌ 工作流执行出错: {e}")
 
     print("\n===== ✅ 完整工作流测试结束 =====")
+
 
 if __name__ == "__main__":
     run_full_workflow()

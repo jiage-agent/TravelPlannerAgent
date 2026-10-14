@@ -12,6 +12,10 @@ class PlanRequest(BaseModel):
     """规划请求"""
     user_query: str = Field(description="用户需求描述，如 '我想去杭州玩3天'")
     thread_id: str = Field(default="default", description="会话ID，用于多轮对话")
+    new_session: bool = Field(
+        default=False,
+        description="true 表示开启新会话（清空该 thread 的历史）；false 表示在同一段对话里继续提要求",
+    )
 
 class DayPlan(BaseModel):
     """单天行程（同时也作为 LLM 结构化输出的 schema）"""
